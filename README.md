@@ -153,3 +153,73 @@ erDiagram
     users ||--o{ movements : "1:N"
     books ||--o{ movements : "1:N"
 ```
+
+---
+
+## 📊 Diagramas de Proceso (UML)
+
+### Actividad — Registro de entrada de stock
+
+```mermaid
+flowchart TD
+    A([Usuario autenticado]) --> B[Accede a Entradas y Salidas]
+    B --> C[Selecciona libro]
+    C --> D[Elige tipo: Entrada]
+    D --> E[Ingresa cantidad]
+    E --> F[Opcional: agrega nota]
+    F --> G{¿Datos válidos?}
+    G -->|No| H[Errores de validación]
+    H --> C
+    G -->|Sí| I[Inicia transacción DB]
+    I --> J[Bloquea fila del libro lockForUpdate]
+    J --> K[stock += cantidad]
+    K --> L[Guarda libro]
+    L --> M[Crea registro Movement type=entrada]
+    M --> N[Commit]
+    N --> O[Redirige con éxito]
+```
+
+### Actividad — Registro de salida con validación de stock
+
+```mermaid
+flowchart TD
+    A([Usuario autenticado]) --> B[Accede a Entradas y Salidas]
+    B --> C[Selecciona libro]
+    C --> D[Elige tipo: Salida]
+    D --> E[Ingresa cantidad a retirar]
+    E --> F[Opcional: agrega nota]
+    F --> G{¿Datos válidos?}
+    G -->|No| H[Errores de validación]
+    H --> C
+    G -->|Sí| I[Inicia transacción DB]
+    I --> J[Bloquea fila del libro lockForUpdate]
+    J --> K{stock >= cantidad?}
+    K -->|No| L[Exception Stock insuficiente]
+    L --> M[Rollback]
+    M --> N[Error: cantidad inválida]
+    N --> C
+    K -->|Sí| O[stock -= cantidad]
+    O --> P[Guarda libro]
+    P --> Q[Crea registro Movement type=salida]
+    Q --> R[Commit]
+    R --> S[Redirige con éxito]
+```
+
+### Actividad — Eliminación lógica (SoftDelete) preservando historial
+
+```mermaid
+flowchart TD
+    A([Usuario autenticado]) --> B[Listado de libros]
+    B --> C[Presiona Eliminar]
+    C --> D{Confirmar?}
+    D -->|No| E[Cancelar]
+    E --> B
+    D -->|Sí| F["Ejecuta Book→delete()"]
+    F --> G[SoftDeletes asigna deleted_at]
+    G --> H{Hay movements?}
+    H -->|Sí| I[FK restrict: movements NO se eliminan]
+    H -->|No| J[No hay movimientos]
+    I --> K[Libro oculto de consultas]
+    J --> K
+    K --> L[Historial intacto en movements.index]
+```
