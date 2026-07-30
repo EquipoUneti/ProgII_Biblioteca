@@ -9,65 +9,147 @@ BibliotecaHub es un sistema web premium diseñado en Laravel para facilitar la g
 Antes de comenzar, asegúrate de tener instalado en tu equipo:
 - **PHP** (versión 8.1 o superior)
 - **Composer** (gestor de dependencias de PHP)
+- **Node.js y npm** (para compilar assets frontend)
 - **Git** (opcional, para control de versiones)
 
 ---
 
-## 🚀 Guía de Instalación Rápida (Con base de datos local SQLite)
+## 🚀 Guía de Instalación (Con base de datos local SQLite)
 
-Sigue estos sencillos pasos en tu terminal (PowerShell o CMD) para levantar el proyecto desde cero:
+Sigue estos pasos en tu terminal (PowerShell o CMD) para levantar el proyecto desde cero:
 
-### 1. Descargar Dependencias de Laravel
-Instala todas las librerías del framework ejecutando:
+### 1. Clonar el repositorio
+```bash
+git clone https://github.com/EquipoUneti/ProgII_Biblioteca.git
+cd ProgII_Biblioteca
+```
+
+### 2. Descargar Dependencias de PHP
 ```bash
 composer install
 ```
 
-### 2. Configurar la Base de Datos SQLite
-Para que no necesites configurar MySQL, el sistema viene preconfigurado para usar SQLite. Asegúrate de tener el archivo de base de datos creado:
+### 3. Configurar el archivo de entorno
+```bash
+cp .env.example .env
+```
 
-- **En Windows (PowerShell):**
-  ```powershell
-  New-Item -Path "database\database.sqlite" -ItemType File -Force
-  ```
-- **En Mac/Linux:**
-  ```bash
-  touch database/database.sqlite
-  ```
+### 4. Configurar la Base de Datos SQLite
+```powershell
+New-Item -Path "database\database.sqlite" -ItemType File -Force
+```
+*El archivo `.env` ya viene configurado con `DB_CONNECTION=sqlite` por defecto.*
 
-*Nota: El archivo `.env` ya viene configurado con `DB_CONNECTION=sqlite` por defecto.*
-
-### 3. Generar la Clave Única de Seguridad
-Crea la clave de cifrado de la aplicación ejecutando:
+### 5. Generar la Clave de Seguridad
 ```bash
 php artisan key:generate
 ```
 
-### 4. Crear las Tablas de la Base de Datos (Migraciones)
-Genera la estructura de tablas para libros y movimientos ejecutando:
+### 6. Ejecutar Migraciones
 ```bash
 php artisan migrate
 ```
+
+### 7. Instalar y compilar assets frontend (Laravel Breeze)
+```bash
+php artisan breeze:install blade
+npm install && npm run build
+```
+
+### 8. Crear un usuario administrador
+```bash
+php artisan tinker
+```
+```php
+\User::create(['name' => 'Admin', 'email' => 'admin@biblioteca.com', 'password' => bcrypt('admin123')]);
+```
+> Presiona `Ctrl+C` para salir de tinker.
 
 ---
 
 ## 💻 Ejecución del Sistema
 
-Para levantar el servidor de desarrollo local y acceder al panel de control:
-
-1. Ejecuta el servidor:
+1. Inicia el servidor:
    ```bash
    php artisan serve
    ```
-2. Abre tu navegador e ingresa a la siguiente dirección:
-   **[http://127.0.0.1:8000](http://127.0.0.1:8000)**
+2. Abre en tu navegador: **[http://127.0.0.1:8000](http://127.0.0.1:8000)**
+3. Inicia sesión con el usuario creado.
 
 ---
 
 ## 📖 Funcionalidades Principales
 
-1. **Gestión de Libros (Catálogo):** CRUD completo para añadir, listar, actualizar o eliminar libros con validación única de código ISBN.
-2. **Entradas y Salidas de Stock:** 
-   - Registro de entradas (incrementa el stock).
-   - Registro de salidas (disminuye el stock).
-3. **Consistencia Transaccional:** La aplicación utiliza transacciones de base de datos (`DB::transaction()`) combinadas con bloqueos de fila (`lockForUpdate()`) para garantizar que **el stock de un libro nunca disminuya a menos de cero**, bloqueando cualquier salida si no hay suficientes unidades disponibles.
+### 🔐 Autenticación de Usuarios
+- Login y registro de usuarios mediante **Laravel Breeze** con Blade.
+- Las rutas operativas (`books`, `movements`, `profile`) están protegidas tras autenticación.
+- Redirección automática al login si no hay sesión activa.
+
+### 📚 Gestión de Libros (Catálogo)
+- CRUD completo con validación única de código ISBN.
+- **Buscador multicriterio** por título, autor o ISBN con paginación (10 registros por página).
+- **Eliminación lógica (SoftDeletes)**: los libros eliminados conservan su historial de movimientos intacto.
+
+### 🔄 Entradas y Salidas de Stock
+- Registro de entradas (incrementa el stock) y salidas (disminuye el stock).
+- **Validación de stock disponible**: no permite registrar una salida si el stock es insuficiente.
+- **Consistencia transaccional**: usa transacciones de base de datos (`DB::transaction()`) combinadas con bloqueos de fila (`lockForUpdate()`) para evitar condiciones de carrera.
+- **Preservación del historial**: la clave foránea `book_id` usa `onDelete('restrict')`, impidiendo la eliminación física de un libro con movimientos asociados.
+
+### 🧑 Perfil de Usuario
+- Edición de perfil, cambio de contraseña y eliminación de cuenta (proporcionado por Breeze).
+
+---
+
+## 🗂️ Modelo de Datos
+
+### Entidades
+
+| Entidad     | Columnas principales                                                              |
+|-------------|-----------------------------------------------------------------------------------|
+| `users`     | id, name, email, password, timestamps                                             |
+| `books`     | id, title, author, isbn (unique), stock, timestamps, deleted_at (soft delete)     |
+| `movements` | id, book_id (FK), type (entrada/salida), quantity, note, timestamps               |
+
+### Relaciones
+- `users` **1:N** `movements` (opcional)
+- `books` **1:N** `movements`
+
+### Diagrama Entidad-Relación
+
+```mermaid
+erDiagram
+    users {
+        bigint id PK
+        string name
+        string email UK
+        timestamp email_verified_at
+        string password
+        timestamps created_at
+        timestamps updated_at
+    }
+
+    books {
+        bigint id PK
+        string title
+        string author
+        string isbn UK
+        integer stock
+        timestamps created_at
+        timestamps updated_at
+        timestamp deleted_at
+    }
+
+    movements {
+        bigint id PK
+        bigint book_id FK
+        enum type "entrada | salida"
+        integer quantity
+        string note "nullable"
+        timestamps created_at
+        timestamps updated_at
+    }
+
+    users ||--o{ movements : "1:N"
+    books ||--o{ movements : "1:N"
+```
