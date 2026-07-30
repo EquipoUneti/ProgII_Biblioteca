@@ -14,6 +14,25 @@
 </div>
 
 <div class="card">
+    <div class="card-body">
+        <form method="GET" action="{{ route('books.index') }}" class="row g-3 mb-4">
+            <div class="col-md-8">
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="fa-solid fa-search text-muted"></i></span>
+                    <input type="text" class="form-control form-control-lg rounded-end" name="search" placeholder="Buscar por título, autor o ISBN..." value="{{ request('search') }}">
+                </div>
+            </div>
+            <div class="col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-fill"><i class="fa-solid fa-magnifying-glass me-2"></i>Buscar</button>
+                @if(request('search'))
+                    <a href="{{ route('books.index') }}" class="btn btn-outline-secondary flex-fill"><i class="fa-solid fa-xmark me-2"></i>Limpiar</a>
+                @endif
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
     <div class="card-body p-0">
         @if($books->isEmpty())
             <div class="text-center py-5">
@@ -64,7 +83,7 @@
                                         <a href="{{ route('books.edit', $book->id) }}" class="btn btn-sm btn-outline-primary px-3 rounded-3" title="Editar libro">
                                             <i class="fa-solid fa-pen-to-square"></i>
                                         </a>
-                                        <form action="{{ route('books.destroy', $book->id) }}" method="POST" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este libro? Se borrarán también todos sus movimientos asociados.');">
+                                        <form action="{{ route('books.destroy', $book->id) }}" method="POST" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este libro? El historial de movimientos se conservará intacto.');">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-sm btn-outline-danger px-3 rounded-3" title="Eliminar libro">
@@ -77,6 +96,11 @@
                         @endforeach
                     </tbody>
                 </table>
+            </div>
+
+            <div class="card-footer bg-white d-flex justify-content-between align-items-center py-3">
+                <small class="text-muted">Mostrando {{ $books->firstItem() }} a {{ $books->lastItem() }} de {{ $books->total() }} registros</small>
+                {{ $books->links() }}
             </div>
         @endif
     </div>

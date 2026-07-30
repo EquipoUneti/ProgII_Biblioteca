@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('movements', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('book_id')->constrained('books')->onDelete('cascade');
+            $table->foreignId('book_id')->constrained('books')->onDelete('restrict');
             $table->enum('type', ['entrada', 'salida']);
             $table->integer('quantity');
             $table->string('note')->nullable();
